@@ -26,125 +26,132 @@ import pandas as pd
 # ...
 #
 
-args = parse_args()
-setup_environment_and_adapt_args(args)
-init(args)
-dice_metric = DiceMetric(include_background=False, reduction="mean")
+def simplified_predict(input_folder, output_folder, json_folder, docker):
+    args = parse_args()
+    if docker:
+        args.input_dir = input_folder
+        args.json_dir = json_folder
+        args.output_dir = output_folder
+    setup_environment_and_adapt_args(args, docker)
 
-network = DynUNet(
-    spatial_dims=3,
-    in_channels=3, # image + fg + bg = 3
-    out_channels=2, # len(labels) = fg + bg = 2
-    kernel_size=[3, 3, 3, 3, 3, 3],
-    strides=[1, 2, 2, 2, 2, [2, 2, 1]],
-    upsample_kernel_size=[2, 2, 2, 2, [2, 2, 1]],
-    norm_name="instance",
-    deep_supervision=False,
-    res_block=True,
-)
+    init(args)
+    if not docker:
+        dice_metric = DiceMetric(include_background=False, reduction="mean")
+        metric = OrderedDict()
+        metric['CaseName'] = []
+        # 6 Metrics
+        metric['DSC_AUC'] = []
+        metric['FPV_AUC'] = []
+        metric['FNV_AUC'] = []
+        metric['DSC_Final'] = []
+        metric['FPV_Final'] = []
+        metric['FNV_Final'] = []
 
-network.load_state_dict(torch.load(args.resume_from)["net"])
+    network = DynUNet(
+        spatial_dims=3,
+        in_channels=3, # image + fg + bg = 3
+        out_channels=2, # len(labels) = fg + bg = 2
+        kernel_size=[3, 3, 3, 3, 3, 3],
+        strides=[1, 2, 2, 2, 2, [2, 2, 1]],
+        upsample_kernel_size=[2, 2, 2, 2, [2, 2, 1]],
+        norm_name="instance",
+        deep_supervision=False,
+        res_block=True,
+    )
 
-sw_params = {
-    "roi_size": (128, 128, 128),
-    "mode": "gaussian",
-    "cache_roi_weight_map": True,
-}
-eval_inferer = SlidingWindowInferer(sw_batch_size=1, overlap=0.25, **sw_params)
+    network.load_state_dict(torch.load(args.resume_from)["net"])
 
-loop = args.loop
-n_clicks = 10
-device = torch.device('cuda:0') 
-pre_transforms_val = Compose(get_pre_transforms_val_as_list(args.labels, device, args))
-if loop:
-    args.save_pred = False
-post_transform = get_post_transforms(args.labels, save_pred=args.save_pred, output_dir=args.output_dir, pretransform=pre_transforms_val)
+    sw_params = {
+        "roi_size": (128, 128, 128),
+        "mode": "gaussian",
+        "cache_roi_weight_map": True,
+    }
+    eval_inferer = SlidingWindowInferer(sw_batch_size=1, overlap=0.25, **sw_params)
 
-val_loader = get_test_loader(args, pre_transforms_val)
-network.eval()
-network.to(device)
+    loop = args.loop
+    n_clicks = 10
+    device = torch.device('cuda:0') 
+    pre_transforms_val = Compose(get_pre_transforms_val_as_list(args.labels, device, args))
+    if loop:
+        args.save_pred = False
+    post_transform = get_post_transforms(args.labels, save_pred=args.save_pred, output_dir=args.output_dir, pretransform=pre_transforms_val, docker=docker)
 
-metric = OrderedDict()
-metric['CaseName'] = []
-# 6 Metrics
-metric['DSC_AUC'] = []
-metric['FPV_AUC'] = []
-metric['FNV_AUC'] = []
-metric['DSC_Final'] = []
-metric['FPV_Final'] = []
-metric['FNV_Final'] = []
-
-for data in val_loader:
-    original_image = data['image'].to(device)[0].clone()
-    original_label =  data['label'].to(device)[0].clone()
-    data['image'] = data['image'].to(device)[0]
-    data['label'] = data['label'].to(device)[0]
-    if loop: # For offline evaluation
-        val_metrics = {'dsc': [], 'fpv': [], 'fnv': []}
-        for i in range(n_clicks):
-            click_transforms = get_click_transforms_json(device, args, n_clicks=i+1)
-            img = data['image']
-            img_clicks = click_transforms(data)['image'].unsqueeze(0) # img + guidance signals (fg + bg)
-            data['image'] = img
-            with torch.no_grad():
-                pred = eval_inferer(inputs=img_clicks, network=network)
-                data['pred'] = pred[0]
+    val_loader = get_test_loader(args, pre_transforms_val)
+    network.eval()
+    network.to(device)
 
 
-                pred = post_transform(data)['pred'].unsqueeze(0)
 
-                dsc = dice_metric(pred.to(device), data['label'].to(device).unsqueeze(0))
+    for data in val_loader:
+        data['image'] = data['image'].to(device)[0]
+        if not docker:
+            data['label'] = data['label'].to(device)[0]
+        if loop: # For offline evaluation
+            if not docker:
+                val_metrics = {'dsc': [], 'fpv': [], 'fnv': []}
+            for i in range(n_clicks):
+                click_transforms = get_click_transforms_json(device, args, n_clicks=i+1)
+                img = data['image']
+                img_clicks = click_transforms(data)['image'].unsqueeze(0) # img + guidance signals (fg + bg)
+                data['image'] = img
+                with torch.no_grad():
+                    pred = eval_inferer(inputs=img_clicks, network=network)
+                    data['pred'] = pred[0]
+                    pred = post_transform(data)['pred'].unsqueeze(0)
+
+                    if not docker:
+                        dsc = dice_metric(pred.to(device), data['label'].to(device).unsqueeze(0))
+                        
+                        fpv = torch.sum((data['label'][0].to(device)==0) * (pred[0][1].to(device) == 1))
+                        fnv = torch.sum((data['label'][0].to(device)==1) * (pred[0][1].to(device) == 0))
+
+                        dsc = dsc[0][0].cpu().detach().numpy()
+                        fpv = fpv.cpu().detach().numpy()
+                        fnv = fnv.cpu().detach().numpy()
+
+                        print('Click:', i, 'DSC:', dsc, 'FPV', fpv, 'FNV', fnv)
+                        val_metrics['dsc'].append(dsc)
+                        val_metrics['fpv'].append(fpv)
+                        val_metrics['fnv'].append(fnv)
+            if not docker:
+                img_fn = data['image_meta_dict']['filename_or_obj'][0].split('/')[-1]
+                os.makedirs(os.path.join(args.json_dir, 'val_metrics'), exist_ok=True)
+                np.savez_compressed(os.path.join(args.json_dir, 'val_metrics', img_fn.replace(".nii.gz", ".npz")), 
+                                    dsc=val_metrics['dsc'],
+                                    fpv=val_metrics['fpv'],
+                                    fnv=val_metrics['fnv'])
+                print('Saved metrics to', os.path.join(args.json_dir, 'val_metrics', img_fn.replace(".nii.gz", ".npz")))
                 
-                fpv = torch.sum((data['label'][0].to(device)==0) * (pred[0][1].to(device) == 1))
-                fnv = torch.sum((data['label'][0].to(device)==1) * (pred[0][1].to(device) == 0))
+                # Compute interactive metrics
+                dsc_auc = integrate.cumulative_trapezoid(val_metrics['dsc'], np.arange(n_clicks))[-1]
+                fpv_auc = integrate.cumulative_trapezoid(val_metrics['fpv'], np.arange(n_clicks))[-1]
+                fnv_auc = integrate.cumulative_trapezoid(val_metrics['fnv'], np.arange(n_clicks))[-1]
 
-                dsc = dsc[0][0].cpu().detach().numpy()
-                fpv = fpv.cpu().detach().numpy()
-                fnv = fnv.cpu().detach().numpy()
+                dsc_final = val_metrics['dsc'][-1]
+                fpv_final = val_metrics['fpv'][-1]
+                fnv_final = val_metrics['fnv'][-1]
 
-                print('Click:', i, 'DSC:', dsc, 'FPV', fpv, 'FNV', fnv)
-                val_metrics['dsc'].append(dsc)
-                val_metrics['fpv'].append(fpv)
-                val_metrics['fnv'].append(fnv)
-        img_fn = data['image_meta_dict']['filename_or_obj'][0].split('/')[-1]
-        os.makedirs(os.path.join(args.json_dir, 'val_metrics'), exist_ok=True)
-        np.savez_compressed(os.path.join(args.json_dir, 'val_metrics', img_fn.replace(".nii.gz", ".npz")), 
-                            dsc=val_metrics['dsc'],
-                            fpv=val_metrics['fpv'],
-                            fnv=val_metrics['fnv'])
-        print('Saved metrics to', os.path.join(args.json_dir, 'val_metrics', img_fn.replace(".nii.gz", ".npz")))
+                metric['CaseName'].append(img_fn)
+                metric['DSC_AUC'].append(dsc_auc)
+                metric['FPV_AUC'].append(fpv_auc)
+                metric['FNV_AUC'].append(fnv_auc)
+
+                metric['DSC_Final'].append(dsc_final)
+                metric['FPV_Final'].append(fpv_final)
+                metric['FNV_Final'].append(fnv_final)
+
+        else:
+            click_transforms = get_click_transforms_json(device, args, n_clicks=10)
+            data['image'] = click_transforms(data)['image'].unsqueeze(0) # img + guidance signals (fg + bg)
+            with torch.no_grad():
+                pred = eval_inferer(inputs=data['image'], network=network)
+                data['pred'] = pred[0]
+                data['pred'] = post_transform(data)['pred']
         
-        # Compute interactive metrics
-        dsc_auc = integrate.cumulative_trapezoid(val_metrics['dsc'], np.arange(n_clicks))[-1]
-        fpv_auc = integrate.cumulative_trapezoid(val_metrics['fpv'], np.arange(n_clicks))[-1]
-        fnv_auc = integrate.cumulative_trapezoid(val_metrics['fnv'], np.arange(n_clicks))[-1]
-
-        dsc_final = val_metrics['dsc'][-1]
-        fpv_final = val_metrics['fpv'][-1]
-        fnv_final = val_metrics['fnv'][-1]
-
-        metric['CaseName'].append(img_fn)
-        metric['DSC_AUC'].append(dsc_auc)
-        metric['FPV_AUC'].append(fpv_auc)
-        metric['FNV_AUC'].append(fnv_auc)
-
-        metric['DSC_Final'].append(dsc_final)
-        metric['FPV_Final'].append(fpv_final)
-        metric['FNV_Final'].append(fnv_final)
-
-    else:
-        click_transforms = get_click_transforms_json(device, args, n_clicks=10)
-
-        data['image'] = click_transforms(data)['image'].unsqueeze(0) # img + guidance signals (fg + bg)
-        with torch.no_grad():
-            pred = eval_inferer(inputs=data['image'], network=network)
-            data['pred'] = pred[0]
-            data['pred'] = post_transform(data)['pred']
-    
-if loop:
-    metric_df = pd.DataFrame(metric)
-    metric_df.to_csv(os.path.join(args.json_dir, 'val_metrics', 'interactive_metrics.csv'), index=False)
-    print('Saved interactive metrics to', os.path.join(args.json_dir, 'val_metrics', 'interactive_metrics.csv'))
+    if loop and not docker:
+        metric_df = pd.DataFrame(metric)
+        metric_df.to_csv(os.path.join(args.json_dir, 'val_metrics', 'interactive_metrics.csv'), index=False)
+        print('Saved interactive metrics to', os.path.join(args.json_dir, 'val_metrics', 'interactive_metrics.csv'))
 
 
 

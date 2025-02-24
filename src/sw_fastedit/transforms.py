@@ -60,7 +60,10 @@ class AddEmptySignalChannels(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         # Set up the initial batch data
-        in_channels = 1 + len(data[LABELS_KEY])
+        non_image_channels = 2 # autopet docker placeholder 
+        if data[LABELS_KEY] is not None:
+            non_image_channels = len(data[LABELS_KEY]) 
+        in_channels = 1 + non_image_channels
         tmp_image = data[CommonKeys.IMAGE][0 : 0 + 1, ...]
         assert len(tmp_image.shape) == 4
         new_shape = list(tmp_image.shape)
@@ -139,6 +142,24 @@ class NormalizeLabelsInDatasetd(MapTransform):
                 raise UserWarning("Only the key label is allowed here!")
         return data
 
+class OverrideLabelsKeyd(MapTransform):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        labels={"tumor": 1, "background": 0},
+        allow_missing_keys: bool = False,
+    ):
+        """
+        Override the LABELS_KEY to {1 : tumor, 0 : background}
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.labels = labels
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
+        # Set the labels dict in case no labels were provided
+        data[LABELS_KEY] = self.labels
+        
+        return data
 
 class AddGuidanceSignal(MapTransform):
     """
@@ -392,7 +413,7 @@ class AddGuidanceJSON(Randomizable, MapTransform):
         assert self.json_dir is not None
 
         for _, (key_label, _) in enumerate(data[LABELS_KEY].items()):
-            num_clicks = len(data[key_label]) + 1 if key_label in data.keys() else 1
+            #num_clicks = len(data[key_label]) + 1 if key_label in data.keys() else 1
 
             im_fn = data['image_meta_dict']['filename_or_obj'][0].split('/')[-1]
             json_fn = os.path.join(self.json_dir, im_fn.replace('.nii.gz', '_clicks.json'))
@@ -400,8 +421,6 @@ class AddGuidanceJSON(Randomizable, MapTransform):
             with open(json_fn, 'r') as f:
                 json_data = json.load(f)
  
-
-
                 json_data[key_label] = [[0] + el for el in json_data[key_label][:self.n_clicks]]
 
                 #json_data[key_label] = json_data[key_label][:num_clicks]

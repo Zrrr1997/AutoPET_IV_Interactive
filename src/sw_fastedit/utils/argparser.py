@@ -37,8 +37,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # Data
-    parser.add_argument("-i", "--input_dir", required=True, help="Base folder for input images and labels")
-    parser.add_argument("-o", "--output_dir", required=True, help="All the logs and weights will be stored here")
+    parser.add_argument("-i", "--input_dir", required=False, help="Base folder for input images and labels")
+    parser.add_argument("-o", "--output_dir", required=False, help="All the logs and weights will be stored here")
     parser.add_argument("--json_dir", required=False, help="Path to the click coordinates saved as json files")
 
     parser.add_argument(
@@ -109,6 +109,8 @@ def parse_args():
     parser.add_argument("--no_data", default=False, action="store_true")
     parser.add_argument("--dont_check_output_dir", default=False, action="store_true")
     parser.add_argument("--debug", default=False, action="store_true")
+    parser.add_argument("--docker", default=False, action="store_true")
+
 
     # Model
     parser.add_argument(
@@ -212,7 +214,25 @@ def parse_args():
     return args
 
 
-def setup_environment_and_adapt_args(args):
+def setup_environment_and_adapt_args(args, docker):
+    if docker is not None:
+        #args.i = "/input/demo_json/demo_data/"
+
+
+        args.epochs = 800
+        args.dont_check_output_dir = True
+        args.resume_from = "model/151_best_0.8534.pt"
+        args.eval_only = True
+        args.no_log = True
+        args.no_data = True
+        args.save_pred = True
+        args.loop = False
+        args.amp = True
+        args.throw_away_cache = True
+        args.docker = True
+        
+
+
     args.caller_args = sys.argv
     args.env = os.environ
     args.git = get_git_information()
@@ -339,5 +359,8 @@ def setup_environment_and_adapt_args(args):
             assert (size % 32) == 0
         for size in args.val_crop_size:
             assert (size % 32) == 0
+
+
+
 
     return args, logger

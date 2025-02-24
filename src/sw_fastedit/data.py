@@ -65,6 +65,7 @@ from sw_fastedit.transforms import (
     FindDiscrepancyRegions,
     NormalizeLabelsInDatasetd,
     SplitPredsLabeld,
+    OverrideLabelsKeyd,
 )
 from sw_fastedit.utils.helper import convert_mha_to_nii, convert_nii_to_mha
 
@@ -190,6 +191,8 @@ def get_pre_transforms_val_as_list(labels: Dict, device, args, input_keys=("imag
     else:
         loglevel = logging.INFO
 
+    input_keys = ("image") if args.docker else input_keys
+
     # data Input keys have to be at least ["image"] for val
     if args.dataset in PET_dataset_names:
         t = [
@@ -199,7 +202,7 @@ def get_pre_transforms_val_as_list(labels: Dict, device, args, input_keys=("imag
             ),  # necessary if the dataloader runs in an extra thread / process
             LoadImaged(keys=input_keys, reader="ITKReader", image_only=False),
             EnsureChannelFirstd(keys=input_keys),
-            NormalizeLabelsInDatasetd(keys="label", labels=labels, device=cpu_device, allow_missing_keys=True),
+            NormalizeLabelsInDatasetd(keys="label", labels=labels, device=cpu_device, allow_missing_keys=True) if ('label' in input_keys) else OverrideLabelsKeyd(keys=input_keys, allow_missing_keys=True, labels={"tumor": 1, "background": 0}),
             # Only for HECKTOR, filter out the values > 1
             Lambdad(keys="label", func=cast_labels_to_zero_and_one) if (args.dataset == "HECKTOR") else Identityd(keys=input_keys, allow_missing_keys=True),
             Orientationd(keys=input_keys, axcodes="RAS"),
@@ -316,7 +319,7 @@ def get_click_transforms_json(device, args, n_clicks=10):
     return Compose(t)
 
 
-def get_post_transforms(labels, *, save_pred=False, output_dir=None, pretransform=None):
+def get_post_transforms(labels, *, save_pred=False, output_dir=None, pretransform=None, docker=False):
     cpu_device = torch.device("cpu")
     if save_pred:
         if output_dir is None:
@@ -325,6 +328,10 @@ def get_post_transforms(labels, *, save_pred=False, output_dir=None, pretransfor
             logger.warning("Make sure to add a pretransform here if you want the prediction to be inverted")
 
     input_keys = ("pred",)
+    discrete_keys = input_keys if docker else ("pred", "label")
+    argmax_vals = (True) if docker else (True, False)
+    one_hot_vals = (len(labels)) if docker else (len(labels), len(labels))
+    tensor_keys = ("image", "pred") if docker else ("image", "label", "pred")
     t = [
         CopyItemsd(keys=("pred",), times=1, names=("pred_for_save",))
         if save_pred
@@ -345,10 +352,10 @@ def get_post_transforms(labels, *, save_pred=False, output_dir=None, pretransfor
         if save_pred
         else Identityd(keys=input_keys, allow_missing_keys=True),
         AsDiscreted(
-            keys=("pred", "label"),
-            argmax=(True, False),
-            to_onehot=(len(labels), len(labels)),
-        ),
+            keys=discrete_keys,
+            argmax=argmax_vals,
+            to_onehot=one_hot_vals,
+        ), 
         SaveImaged(
             keys=("pred_for_save",),
             writer="ITKWriter",
@@ -361,7 +368,7 @@ def get_post_transforms(labels, *, save_pred=False, output_dir=None, pretransfor
         )
         if save_pred
         else Identityd(keys=input_keys, allow_missing_keys=True),
-        ToTensord(keys=("image", "label", "pred"), device=cpu_device),
+        ToTensord(keys=tensor_keys, device=cpu_device),
         # This transform is to check dice score per segment/label
         # SplitPredsLabeld(keys="pred"),
     ]
@@ -498,6 +505,17 @@ def get_AutoPET2_Challenge_file_list(args) -> List[List, List, List]:
     logger.info(f"{test_data=}")
     return [], [], test_data
 
+def get_AutoPET4_Challenge_file_list(args) -> List[List, List, List]:
+    test_images = sorted(glob.glob(os.path.join(args.input_dir, "*0000.nii.gz")))
+
+    logger.info(f"{test_images=}")
+    test_data = []
+    for image_path in test_images:
+        test_data.append({"image": image_path})
+
+    logger.info(f"{test_data=}")
+    return [], test_data, test_data
+
 
 def post_process_AutoPET2_Challenge_file_list(args, pred_dir, cache_dir):
     logger.info("POSTPROCESSING AutoPET challenge files")
@@ -585,7 +603,9 @@ def get_data(args):
     logger.info(f"{args.dataset=}")
 
     test_data = []
-    if args.dataset == "AutoPET":
+    if args.docker is not None:
+        train_data, val_data, test_data = get_AutoPET4_Challenge_file_list(args)
+    elif args.dataset == "AutoPET":
         train_data, val_data, test_data = get_AutoPET_file_list(args)
     elif args.dataset == "AutoPET2_Challenge":
         train_data, val_data, test_data = get_AutoPET2_Challenge_file_list(args)
