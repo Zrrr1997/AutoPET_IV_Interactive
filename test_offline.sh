@@ -13,11 +13,11 @@ VOLUME_SUFFIX=$(dd if=/dev/urandom bs=32 count=1 | md5sum | cut --delimiter=' ' 
 MEM_LIMIT="30g"  # Maximum is currently 30g, configurable in your algorithm image settings on grand challenge
 
 # For saving on the host filesystem (offline inference)
-#VOLUME=$SCRIPTPATH/test/output/ 
+VOLUME=$SCRIPTPATH/test/output/ 
 
 # For grand-challenge - volumes with unique identifiers
-VOLUME=sw_infer_output-$VOLUME_SUFFIX
-docker volume create $VOLUME 
+#VOLUME=sw_infer_output-$VOLUME_SUFFIX
+#docker volume create $VOLUME 
 
 echo $VOLUME 
 

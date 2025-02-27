@@ -54,8 +54,8 @@ def save_click_heatmaps(clicks, ref_shape, ref_affine, debug_output, input_label
     tumor_nifti = nib.Nifti1Image(tumor_heatmap, ref_affine)
     non_tumor_nifti = nib.Nifti1Image(non_tumor_heatmap, ref_affine)
 
-    nib.save(tumor_nifti, os.path.join(debug_output, f'{input_label.split("/")[-1].split(".nii.gz")[0]}_fg_heatmaps.nii.gz'))
-    nib.save(non_tumor_nifti, os.path.join(debug_output, f'{input_label.split("/")[-1].split(".nii.gz")[0]}_bg_heatmaps.nii.gz'))
+    nib.save(tumor_nifti, os.path.join(debug_output, f'{input_label.split("/")[-1].split(".nii.gz")[0]}_0003.nii.gz')) # foreground clicks
+    nib.save(non_tumor_nifti, os.path.join(debug_output, f'{input_label.split("/")[-1].split(".nii.gz")[0]}_0004.nii.gz')) # background clicks
 
 
 SEED = 42

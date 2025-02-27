@@ -416,7 +416,7 @@ class AddGuidanceJSON(Randomizable, MapTransform):
             #num_clicks = len(data[key_label]) + 1 if key_label in data.keys() else 1
 
             im_fn = data['image_meta_dict']['filename_or_obj'][0].split('/')[-1]
-            json_fn = os.path.join(self.json_dir, im_fn.replace('.nii.gz', '_clicks.json'))
+            json_fn = os.path.join(self.json_dir, im_fn.replace('_0001.nii.gz', '_clicks.json'))
 
             with open(json_fn, 'r') as f:
                 json_data = json.load(f)

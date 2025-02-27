@@ -1,23 +1,24 @@
-#FROM python:3.9-slim
 FROM pytorch/pytorch
 
-RUN groupadd -r user && useradd -m --no-log-init -r -g user user
+RUN groupadd -r algorithm && useradd -m --no-log-init -r -g algorithm algorithm
 
-RUN mkdir -p /opt/app /input /output \
-    && chown user:user /opt/app /input /output
+RUN mkdir -p /opt/algorithm /input /output /output/images/automated-petct-lesion-segmentation \
+    && chown -R algorithm:algorithm /opt/algorithm /input /output
 
-USER user
-WORKDIR /opt/app
+USER algorithm
+WORKDIR /opt/algorithm
 
-ENV PATH="/home/user/.local/bin:${PATH}"
+ENV PATH="/home/algorithm/.local/bin:${PATH}"
 
-RUN python -m pip install -U pip
+RUN python -m pip install --user -U pip
 
-COPY --chown=user:user requirements.txt /opt/app/
+COPY --chown=algorithm:algorithm requirements.txt /opt/algorithm/
 RUN python -m pip install monailabel
 RUN python -m pip install -r requirements.txt
 
+COPY --chown=algorithm:algorithm . /opt/algorithm/sw_infer/
 
-COPY --chown=user:user . /opt/app/sw_infer/
-WORKDIR /opt/app/sw_infer/
+WORKDIR /opt/algorithm/sw_infer/
+
+ENTRYPOINT ["python", "-m", "process"]
  

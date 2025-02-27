@@ -1,11 +1,13 @@
 import SimpleITK
 import time
 import os
+import sys
+sys.path.append("./src")  # Add src to sys.path
 import torch
-from simplified_inference import simplified_predict
+from src.simplified_inference import simplified_predict
 
 
-class Autopet_baseline():  
+class Autopet_baseline():  # SegmentationAlgorithm is not inherited in this class anymore
 
     def __init__(self):
         """
@@ -13,19 +15,16 @@ class Autopet_baseline():
         Initialize your model etc.
         """
         # set some paths and parameters
-        #self.input_path = '/input/'  # according to the specified grand-challenge interfaces
-        self.input_path = './assets/input/'
-        #self.output_path = '/output/images/automated-petct-lesion-segmentation/'  # according to the specified grand-challenge interfaces
-        self.output_path = './assets/output/'  # according to the specified grand-challenge interfaces
-
-        #self.nii_path = '/opt/algorithm/nnUNet_raw_data_base/nnUNet_raw_data/Task001_TCIA/imagesTs'
-        self.nii_path = './assets/nii_path/'
-        #self.result_path = '/opt/algorithm/nnUNet_raw_data_base/nnUNet_raw_data/Task001_TCIA/result'
-        self.result_path = './assets/output_nifti/'
+        self.input_path = '/input/'  # according to the specified grand-challenge interfaces
+        self.output_path = '/output/images/automated-petct-lesion-segmentation/'  # according to the specified grand-challenge interfaces
+        self.nii_path = '/input/'
+        self.result_path = '/output/images/automated-petct-lesion-segmentation/'
         self.nii_seg_file = 'TCIA_001_0000.nii.gz'
-        self.json_path = './assets/json_path'
+        self.json_path = '/input/json_path/'
 
-    def convert_mha_to_nii(self, mha_input_path, nii_out_path):  
+        pass
+
+    def convert_mha_to_nii(self, mha_input_path, nii_out_path): 
         img = SimpleITK.ReadImage(mha_input_path)
         SimpleITK.WriteImage(img, nii_out_path, True)
 
@@ -67,25 +66,21 @@ class Autopet_baseline():
         Check https://grand-challenge.org/algorithms/interfaces/
         """
         os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
-        self.convert_nii_to_mha(os.path.join(self.result_path, 'predictions', self.nii_seg_file), os.path.join(self.output_path, uuid + ".mha"))
+        print(os.path.join(self.result_path, self.nii_seg_file))
+        self.convert_nii_to_mha(os.path.join(self.result_path, self.nii_seg_file), os.path.join(self.output_path, uuid + ".mha"))
         print('Output written to: ' + os.path.join(self.output_path, uuid + ".mha"))
 
     def predict(self):
         """
         Your algorithm goes here
         """
-        print("SW-FastEdit segmentation starting!")
+        print("segmentation starting!")
         input_folder = self.nii_path
         output_folder = self.result_path
         json_folder = self.json_path
+        docker = True
+        simplified_predict(input_folder, output_folder, json_folder, docker)
         
-        simplified_predict(input_folder, output_folder, json_folder, True)
-
-        if not os.path.exists(os.path.join(self.results_path, 'predictions', self.nii_seg_file)):
-            print('waiting for segmentation to be created')
-        while not os.path.exists(os.path.join(self.results_path, 'predictions', self.nii_seg_file)):
-            print('.', end='')
-            time.sleep(5)
         print('Prediction finished')
 
     def process(self):

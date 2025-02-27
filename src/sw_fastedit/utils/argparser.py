@@ -216,12 +216,13 @@ def parse_args():
 
 def setup_environment_and_adapt_args(args, docker):
     if docker is not None:
-        #args.i = "/input/demo_json/demo_data/"
-
-
+        args.docker = docker
+    else:
+        args.docker = False
+    if args.docker:
+        args.throw_away_cache = True
         args.epochs = 800
         args.dont_check_output_dir = True
-        args.resume_from = "model/151_best_0.8534.pt"
         args.eval_only = True
         args.no_log = True
         args.no_data = True
@@ -230,6 +231,8 @@ def setup_environment_and_adapt_args(args, docker):
         args.amp = True
         args.throw_away_cache = True
         args.docker = True
+        args.resume_from = 'model/151_best_0.8534.pt'
+
         
 
 

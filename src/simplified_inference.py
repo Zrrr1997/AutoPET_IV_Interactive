@@ -74,6 +74,8 @@ def simplified_predict(input_folder, output_folder, json_folder, docker):
     pre_transforms_val = Compose(get_pre_transforms_val_as_list(args.labels, device, args))
     if loop:
         args.save_pred = False
+    if docker:
+        args.save_pred = True
     post_transform = get_post_transforms(args.labels, save_pred=args.save_pred, output_dir=args.output_dir, pretransform=pre_transforms_val, docker=docker)
 
     val_loader = get_test_loader(args, pre_transforms_val)
@@ -89,8 +91,8 @@ def simplified_predict(input_folder, output_folder, json_folder, docker):
         if loop: # For offline evaluation
             if not docker:
                 val_metrics = {'dsc': [], 'fpv': [], 'fnv': []}
-            for i in range(n_clicks):
-                click_transforms = get_click_transforms_json(device, args, n_clicks=i+1)
+            for i in range(n_clicks+1):
+                click_transforms = get_click_transforms_json(device, args, n_clicks=i)
                 img = data['image']
                 img_clicks = click_transforms(data)['image'].unsqueeze(0) # img + guidance signals (fg + bg)
                 data['image'] = img
@@ -123,9 +125,9 @@ def simplified_predict(input_folder, output_folder, json_folder, docker):
                 print('Saved metrics to', os.path.join(args.json_dir, 'val_metrics', img_fn.replace(".nii.gz", ".npz")))
                 
                 # Compute interactive metrics
-                dsc_auc = integrate.cumulative_trapezoid(val_metrics['dsc'], np.arange(n_clicks))[-1]
-                fpv_auc = integrate.cumulative_trapezoid(val_metrics['fpv'], np.arange(n_clicks))[-1]
-                fnv_auc = integrate.cumulative_trapezoid(val_metrics['fnv'], np.arange(n_clicks))[-1]
+                dsc_auc = integrate.cumulative_trapezoid(val_metrics['dsc'], np.arange(n_clicks + 1))[-1]
+                fpv_auc = integrate.cumulative_trapezoid(val_metrics['fpv'], np.arange(n_clicks + 1))[-1]
+                fnv_auc = integrate.cumulative_trapezoid(val_metrics['fnv'], np.arange(n_clicks + 1))[-1]
 
                 dsc_final = val_metrics['dsc'][-1]
                 fpv_final = val_metrics['fpv'][-1]
@@ -147,13 +149,15 @@ def simplified_predict(input_folder, output_folder, json_folder, docker):
                 pred = eval_inferer(inputs=data['image'], network=network)
                 data['pred'] = pred[0]
                 data['pred'] = post_transform(data)['pred']
+                print('Prediction Done!')
         
     if loop and not docker:
         metric_df = pd.DataFrame(metric)
         metric_df.to_csv(os.path.join(args.json_dir, 'val_metrics', 'interactive_metrics.csv'), index=False)
         print('Saved interactive metrics to', os.path.join(args.json_dir, 'val_metrics', 'interactive_metrics.csv'))
 
-
+if __name__ == "__main__":
+    simplified_predict(None, None, None, False)
 
 
         

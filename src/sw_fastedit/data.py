@@ -359,7 +359,7 @@ def get_post_transforms(labels, *, save_pred=False, output_dir=None, pretransfor
         SaveImaged(
             keys=("pred_for_save",),
             writer="ITKWriter",
-            output_dir=os.path.join(output_dir, "predictions"),
+            output_dir=output_dir,
             output_postfix="",
             #    output_ext=".nii.gz",
             output_dtype=np.uint8,
@@ -470,10 +470,10 @@ def get_val_post_transforms(labels, device):
 
 
 def get_AutoPET_file_list(args) -> List[List, List, List]:
-    train_images = sorted(glob.glob(os.path.join(args.input_dir, "imagesTr", "*.nii.gz")))
+    train_images = sorted(glob.glob(os.path.join(args.input_dir, "imagesTr", "*0001.nii.gz")))
     train_labels = sorted(glob.glob(os.path.join(args.input_dir, "labelsTr", "*.nii.gz")))
 
-    test_images = sorted(glob.glob(os.path.join(args.input_dir, "imagesTs", "*.nii.gz")))
+    test_images = sorted(glob.glob(os.path.join(args.input_dir, "imagesTs", "*0001.nii.gz")))
     test_labels = sorted(glob.glob(os.path.join(args.input_dir, "labelsTs", "*.nii.gz")))
 
     train_data = [
@@ -603,7 +603,7 @@ def get_data(args):
     logger.info(f"{args.dataset=}")
 
     test_data = []
-    if args.docker is not None:
+    if args.docker is not None and args.docker:
         train_data, val_data, test_data = get_AutoPET4_Challenge_file_list(args)
     elif args.dataset == "AutoPET":
         train_data, val_data, test_data = get_AutoPET_file_list(args)
