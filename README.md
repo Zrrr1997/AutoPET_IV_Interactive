@@ -1,13 +1,7 @@
 # Official Repository for the Interactive Track of autoPET IV
 The interactive segmentation track for autoPET IV aims to explore click-based interactive models for PET/CT lesion interactive segmentation. Interective models will be evaluated over 11 interactive segmentation steps. In each step, an additional pre-simulated tumor (foreground) and background click, represented as a set of 3D coordinates, will be provided alongside the input image. This process will progress incrementally from 0 clicks to the full allocation of 10 tumor and 10 background clicks per image, resulting in 11 predictions from each model.
 
-<video controls>
-  <source src="assets/example_clicks_heatmaps.webm" type="video/webm">
-  Your browser does not support the video tag.
-</video>
-
-[![Watch the video](assets/thumbnail.png)](assets/example_clicks_heatmaps.webm)
-
+[example_clicks_heatmaps.webm](https://github.com/user-attachments/assets/241dde22-0c03-4a4a-bbfa-5446959e7be2)
 
 
 ## 1. SW-FastEdit Baseline
