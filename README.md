@@ -1,6 +1,12 @@
 # Official Repository for the Interactive Track of autoPET IV
 The interactive segmentation track for autoPET IV aims to explore click-based interactive models for PET/CT lesion interactive segmentation. Interective models will be evaluated over 11 interactive segmentation steps. In each step, an additional pre-simulated tumor (foreground) and background click, represented as a set of 3D coordinates, will be provided alongside the input image. This process will progress incrementally from 0 clicks to the full allocation of 10 tumor and 10 background clicks per image, resulting in 11 predictions from each model.
 
+<video controls>
+  <source src="assets/example_clicks_heatmaps.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+
+[![Watch the video](assets/thumbnail.png)](assets/example_clicks_heatmaps.webm)
 
 
 
@@ -11,12 +17,12 @@ was used for training the baseline. FDG-PET (SUV) volumes from the autoPET II ch
 
 
 ## 2. Inference
-The current code infers the predictions for 1 example image in the `test/input/demo_json/demo_data` path. The images in that path need to be in the following simple format:
+The current code infers the predictions for 1 example image in the `test/input/demo_data` path. The images in that path need to be in the following simple format:
 ```
 demo_data/
 ├── imagesTs
-    ├──fdg_ff39795341_09-22-2005-NA-PET-CT Ganzkoerper  primaer mit KM-98939_0000.nii.gz # ct
-    ├──fdg_ff39795341_09-22-2005-NA-PET-CT Ganzkoerper  primaer mit KM-98939_0001.nii.gz # pet
+    ├──fdg_04606080a0_02-20-2003-NA-PET-CT Ganzkoerper  primaer mit KM-22538_0000.nii.gz # ct
+    ├──fdg_04606080a0_02-20-2003-NA-PET-CT Ganzkoerper  primaer mit KM-22538_0001.nii.gz # pet
     ├──psma_0179419e313f7d8c_2019-06-10_0000.nii.gz # ct 
     ├──psma_0179419e313f7d8c_2019-06-10_0001.nii.gz # pet
     ├──...
@@ -25,7 +31,7 @@ demo_data/
     ├──psma_0179419e313f7d8c_2019-06-10.nii.gz 
     ├──...
 ```
-Clicks are needed for inference in the form of `.json` files. They are located in the `test/input/demo_json/Ts_clicks/` path as:
+Clicks are needed for inference in the form of `.json` files. They are located in the `test/input/demo_data/demo_json/Ts_clicks/` path as:
 ```
 demo_json/
 ├──fdg_ff39795341_09-22-2005-NA-PET-CT Ganzkoerper  primaer mit KM-98939_clicks.json 
@@ -61,7 +67,7 @@ pip install -r requirements.txt
 
 Run script for iterative inference. The outputs will be saved in the same paths as the Docker run.
 ```
-python src/simplified_inference.py -a -i test/input/demo_data/ -o test/output/images/automated-petct-lesion-segmentation/-ta -e 800 --dont_check_output_dir --resume_from model/151_best_0.8534.pt --eval_only --json_dir test/input/demo_data/demo_json/ --no_log --no_data --save_pred --loop -c cache/
+python src/simplified_inference.py -a -i test/input/demo_data/ -o test/output/images/automated-petct-lesion-segmentation/-ta -e 800 --dont_check_output_dir --resume_from model/151_best_0.8534.pt --eval_only --json_dir test/input/demo_data/demo_json/Ts_clicks/ --no_log --no_data --save_pred --loop -c cache/
 ```
 Remove the `--loop` flag if you simply want the final prediction with all 10 tumor and 10 background clicks instead of iterating over all 10 steps. The evaluation metrics will be saved in `test/input/demo_data/demo_json/val_metrics/interactive_metrics.csv` together with an `.npz` file for each `.nii.gz` containing the `DSC`, `FPV`, and `FPN` for each click iteration.
 

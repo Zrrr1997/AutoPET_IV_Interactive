@@ -506,7 +506,7 @@ def get_AutoPET2_Challenge_file_list(args) -> List[List, List, List]:
     return [], [], test_data
 
 def get_AutoPET4_Challenge_file_list(args) -> List[List, List, List]:
-    test_images = sorted(glob.glob(os.path.join(args.input_dir, "*0000.nii.gz")))
+    test_images = sorted(glob.glob(os.path.join(args.input_dir, "*0001.nii.gz")))
 
     logger.info(f"{test_images=}")
     test_data = []
