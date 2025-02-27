@@ -6,8 +6,6 @@ The interactive segmentation track for autoPET IV aims to explore click-based in
   Your browser does not support the video tag.
 </video>
 
-[![Watch the video](assets/thumbnail.png)](assets/example_clicks_heatmaps.webm)
-
 
 
 ## 1. SW-FastEdit Baseline
