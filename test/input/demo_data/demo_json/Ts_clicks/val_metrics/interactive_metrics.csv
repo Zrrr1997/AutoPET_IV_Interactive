@@ -1,2 +1,3 @@
-CaseName,DSC_AUC,FPV_AUC,FNV_AUC,DSC_Final,FPV_Final,FNV_Final
-fdg_04606080a0_02-20-2003-NA-PET-CT Ganzkoerper  primaer mit KM-22538_0001.nii.gz,7.94905561208725,44619.0,3036.0,0.7638004,5419,289
+version https://git-lfs.github.com/spec/v1
+oid sha256:0fe737e045e0b4c70eb15b6ab11251bec8cdfed21a88aac19f1a3404b61991a6
+size 196
