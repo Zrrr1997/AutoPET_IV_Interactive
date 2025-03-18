@@ -241,6 +241,7 @@ def simulate_clicks(args):
 
     with open(os.path.join(args.json_output, args.input_label.replace('.nii.gz', '_clicks.json').split('/')[-1]), 'w') as f:
         json.dump(clicks, f)
+    return clicks
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
