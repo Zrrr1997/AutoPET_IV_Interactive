@@ -12,3 +12,4 @@ assets/output/*
 assets/nii_path/*
 assets/nii_out_path/*
 assets/json_path/*
+cufile.log

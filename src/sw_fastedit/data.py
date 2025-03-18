@@ -298,6 +298,7 @@ def get_click_transforms_json(device, args, n_clicks=10):
             keys="NA",
             json_dir=args.json_dir,
             n_clicks=n_clicks,
+            docker=args.docker,
         ),
         # Overwrites the image entry
         AddGuidanceSignal(

@@ -16,11 +16,11 @@ class Autopet_baseline():  # SegmentationAlgorithm is not inherited in this clas
         """
         # set some paths and parameters
         self.input_path = '/input/'  # according to the specified grand-challenge interfaces
-        self.output_path = '/output/images/automated-petct-lesion-segmentation/'  # according to the specified grand-challenge interfaces
+        self.output_path = '/output/images/tumor-lesion-segmentation/'  # according to the specified grand-challenge interfaces
         self.nii_path = '/input/'
-        self.result_path = '/output/images/automated-petct-lesion-segmentation/'
-        self.nii_seg_file = 'TCIA_001_0000.nii.gz'
-        self.json_path = '/input/json_path/'
+        self.result_path = '/output/images/tumor-lesion-segmentation/'
+        self.nii_seg_file = 'TCIA_001_0001.nii.gz'
+        self.json_path = '/input/'
 
         pass
 

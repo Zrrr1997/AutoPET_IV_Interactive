@@ -2,7 +2,7 @@ FROM pytorch/pytorch
 
 RUN groupadd -r algorithm && useradd -m --no-log-init -r -g algorithm algorithm
 
-RUN mkdir -p /opt/algorithm /input /output /output/images/automated-petct-lesion-segmentation \
+RUN mkdir -p /opt/algorithm /input /output /output/images/tumor-lesion-segmentation \
     && chown -R algorithm:algorithm /opt/algorithm /input /output
 
 USER algorithm

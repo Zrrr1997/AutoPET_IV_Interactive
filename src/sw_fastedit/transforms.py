@@ -33,7 +33,7 @@ from sw_fastedit.click_definitions import LABELS_KEY, ClickGenerationStrategy
 from sw_fastedit.utils.distance_transform import get_random_choice_from_tensor
 from monai.transforms.utils import distance_transform_edt
 from sw_fastedit.utils.helper import get_global_coordinates_from_patch_coordinates, get_tensor_at_coordinates, timeit
-
+from sw_fastedit.utils.convert_json import gc_to_swfastedit_format
 # from monai.transforms import DistanceTransformEDT
 
 
@@ -396,11 +396,13 @@ class AddGuidanceJSON(Randomizable, MapTransform):
         allow_missing_keys = False,
         json_dir : str = None,
         n_clicks = 10,
+        docker = False,
 
     ):
         super().__init__(keys, allow_missing_keys)
         self.json_dir = json_dir
         self.n_clicks = n_clicks
+        self.docker = docker
 
 
     
@@ -417,9 +419,13 @@ class AddGuidanceJSON(Randomizable, MapTransform):
 
             im_fn = data['image_meta_dict']['filename_or_obj'][0].split('/')[-1]
             json_fn = os.path.join(self.json_dir, im_fn.replace('_0001.nii.gz', '_clicks.json'))
+            if self.docker:
+                json_fn = os.path.join(self.json_dir, 'lesion-clicks.json') # Grand Challenge-specific 
 
             with open(json_fn, 'r') as f:
                 json_data = json.load(f)
+                if self.docker:
+                    json_data = gc_to_swfastedit_format(json_data)
  
                 json_data[key_label] = [[0] + el for el in json_data[key_label][:self.n_clicks]]
 
